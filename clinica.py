@@ -53,3 +53,34 @@ def atualizar_medico(self):
            self.label_senha.config(text="---")
            self.label_nome.config(text="Nenhum paciente aguardando")
            self.label_prioridade.config(text="")
+
+def chamar(self):
+       if self.paciente_atual:
+           messagebox.showwarning("Atencao", "Finalize o atendimento atual primeiro.")
+           return
+       consultorio = self.consultorio.get().strip()
+       if not consultorio:
+           messagebox.showwarning("Atencao", "Informe o consultorio.")
+           return
+       paciente = self.filas.chamar_proximo(self.especialidade.get(), consultorio)
+       if paciente is None:
+           messagebox.showinfo("Fila vazia", "Nao existem pacientes aguardando.")
+           self.atualizar_tudo()
+           return
+       self.paciente_atual = paciente["id"]
+       self.label_status.config(text="Paciente chamado: " + paciente["nome"] + " | " + consultorio,
+                                fg="#16a34a")
+       messagebox.showinfo("Paciente chamado", "Senha: " + paciente["senha"] +
+                           "\nPaciente: " + paciente["nome"] + "\nConsultorio: " + consultorio)
+       self.atualizar_tudo()
+
+
+
+   def finalizar(self):
+       if self.paciente_atual is None:
+           messagebox.showwarning("Atencao", "Nao existe atendimento em andamento.")
+           return
+       if self.banco.finalizar(self.paciente_atual):
+           self.paciente_atual = None
+           self.label_status.config(text="Atendimento finalizado!", fg="#16a34a")
+           self.atualizar_tudo()
