@@ -16,6 +16,13 @@ ESPECIALIDADES = [
     "Ginecologia"
 ]
 
+CONSULTORIOS = {
+    "Cardiologia": "01",
+    "Pediatria": "02",
+    "Clínico Geral": "03",
+    "Psiquiatria": "04",
+    "Ginecologia": "05"
+}
 
 PRIORIDADES = [
     "Normal",
@@ -56,6 +63,7 @@ class SistemaClinica:
         self.criar_painel_espera()
         self.criar_painel_historico()
         self.criar_painel_cadastro()
+        self.agendar_atualizacao()
 
     def criar_painel_medico(self):
         tk.Label(self.aba_medico, text="Painel Médico", font=("Arial", 19, "bold"), bg='white', fg="#17365d").pack(pady=20)
@@ -66,7 +74,8 @@ class SistemaClinica:
         seletor.grid(row=0, column=1, padx=5)
         seletor.bind("<<ComboboxSelected>>", lambda evento: self.atualizar_medico())
         tk.Label(controles, text="Consultorio:", bg="white").grid(row=0, column=2, padx=5)
-        ttk.Entry(controles, textvariable=self.consultorio, width=18).grid(row=0, column=3, padx=5)
+        ttk.Entry(
+            controles, textvariable=self.consultorio, width=18, state="readonly").grid(row=0, column=3, padx=5)
 
         quadro = tk.LabelFrame(self.aba_medico, text="Proximo paciente",
                                font=("Arial", 13, "bold"), bg="#f1f5f9", padx=30, pady=25)
@@ -95,6 +104,9 @@ class SistemaClinica:
     def atualizar_medico(self):
         if self.paciente_atual:
             return
+        self.consultorio.set(
+            CONSULTORIOS.get(self.especialidade.get(), "")
+        )
         paciente = self.banco.proximo_paciente(self.especialidade.get())
         if paciente:
             self.Label_senha.config(text=paciente["senha"])
@@ -152,11 +164,17 @@ class SistemaClinica:
     def criar_painel_espera(self):
         tk.Label(self.aba_espera, text="TEMPO DE ESPERA POR ESPECIALIDADE",
                  font=("Arial", 17, "bold"), bg="white", fg="#17365d").pack(pady=25)
-        colunas = ("especialidade", "quantidade", "senha", "tempo")
+        titulos = {
+            "especialidade": "Especialidade",
+            "quantidade": "Pacientes aguardando",
+            "senha": "Próxima senha",
+            "tempo": "Tempo estimado",
+            "senha_chamada": "Senha chamada", 
+            "consultorio": "Consultório"
+        }
+        colunas = ("especialidade", "quantidade", "senha", "tempo", "senha_chamada", "consultorio")
         self.tabela = ttk.Treeview(self.aba_espera, columns=colunas, show="headings", height=10)
-        titulos = {"especialidade": "Especialidade", "quantidade": "Pacientes aguardando",
-                   "senha": "Proxima senha", "tempo": "Tempo estimado"}
-        larguras = {"especialidade": 220, "quantidade": 180, "senha": 150, "tempo": 180}
+        larguras = {"especialidade": 160, "quantidade": 160, "senha": 130, "tempo": 130, "senha_chamada": 150,"consultorio": 100}
         for coluna, titulo in titulos.items():
             self.tabela.heading(coluna, text=titulo)
             self.tabela.column(coluna, width=larguras[coluna], anchor="center")
@@ -177,12 +195,18 @@ class SistemaClinica:
 
             senha = paciente["senha"] if paciente else "---"
             tempo = quantidade * 30
+            
+            paciente_chamado = self.banco.paciente_em_atendimento(especialidade)
+            senha_chamada = paciente_chamado["senha"] if paciente_chamado else "---"
+            consultorio = CONSULTORIOS[especialidade]
 
             self.tabela.insert("", "end", values=(
                 especialidade,
                 quantidade,
                 senha,
-                str(tempo) + " minutos"
+                str(tempo) + " minutos",
+                senha_chamada,
+                consultorio
             ))
 
         horario = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -190,13 +214,14 @@ class SistemaClinica:
 
     def criar_painel_historico(self):
         tk.Label(self.aba_historico, text="HISTORICO DE ATENDIMENTOS",
-                 font=("Arial", 17, "bold"), bg="white", fg="#17365d").pack(pady=20)
+                font=("Arial", 17, "bold"), bg="white", fg="#17365d").pack(pady=20)
         colunas = ("senha", "nome", "especialidade", "status", "consultorio")
         self.tabela_historico = ttk.Treeview(self.aba_historico, columns=colunas, show="headings")
         titulos = {"senha": "Senha", "nome": "Paciente", "especialidade": "Especialidade",
-                   "status": "Status", "consultorio": "Consultorio"}
+                "status": "Status", "consultorio": "Consultorio"}
         for coluna, titulo in titulos.items():
             self.tabela_historico.heading(coluna, text=titulo)
+            self.tabela_historico.column(coluna, anchor="center")
         self.tabela_historico.pack(fill="both", expand=True, padx=25, pady=20)
 
     def atualizar_historico(self):
