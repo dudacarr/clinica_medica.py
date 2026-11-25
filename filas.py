@@ -46,3 +46,5 @@ class GerenciadorFilas:
         senha = self.filas[especialidade][categoria].popleft()
 
         return senha
+
+    
