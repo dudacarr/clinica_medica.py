@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import sqlite3
 from datetime import datetime
 
@@ -201,3 +202,187 @@ class BancoDados:
 
         return self.cursor.fetchone()
         
+=======
+import sqlite3
+from datetime import datetime
+
+class BancoDados:
+        
+    def __init__(self):
+        self.conexao = sqlite3.connect("clinica.db")
+        self.conexao.row_factory = sqlite3.Row
+        self.cursor = self.conexao.cursor()    
+        
+    def criar_tabela(self):
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pacientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                senha TEXT NOT NULL UNIQUE,
+                especialidade TEXT NOT NULL,
+                prioridade TEXT NOT NULL,
+                data_cadastro TEXT NOT NULL,
+                status TEXT DEFAULT 'Aguardando',
+                data_chamada TEXT,
+                data_finalizacao TEXT,
+                consultorio TEXT
+            )
+        """)
+
+        self.conexao.commit()
+        
+    def inserir_paciente(self, nome, senha, especialidade, prioridade):
+
+        data_cadastro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        try:
+            self.cursor.execute("""
+                INSERT INTO pacientes
+                (nome, senha, especialidade, prioridade, data_cadastro)
+                VALUES (?, ?, ?, ?, ?)
+            """, (nome, senha, especialidade, prioridade, data_cadastro))
+
+            self.conexao.commit()
+
+            return True
+
+        except sqlite3.IntegrityError:
+            return False
+        
+    def listar_pacientes(self, especialidade=None):
+
+        if especialidade:
+            self.cursor.execute("""
+                SELECT * FROM pacientes
+                WHERE status = 'Aguardando'
+                AND especialidade = ?
+            """, (especialidade,))
+        else:
+            self.cursor.execute("""
+                SELECT * FROM pacientes
+                WHERE status = 'Aguardando'
+            """)
+
+        return self.cursor.fetchall()
+    
+    def chamar_paciente(self, senha, consultorio):
+
+        data_chamada = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        self.cursor.execute("""
+            UPDATE pacientes
+            SET status = 'Em atendimento',
+                data_chamada = ?,
+                consultorio = ?
+            WHERE senha = ?
+            AND status = 'Aguardando'
+        """, (data_chamada, consultorio, senha))
+
+        self.conexao.commit()
+
+        return self.cursor.rowcount > 0
+    
+    def finalizar_atendimento(self, senha):
+
+        data_finalizacao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        self.cursor.execute("""
+            UPDATE pacientes
+            SET status = 'Finalizado',
+                data_finalizacao = ?
+            WHERE senha = ?
+            AND status = 'Em atendimento'
+        """, (data_finalizacao, senha))
+
+        self.conexao.commit()
+
+        return self.cursor.rowcount > 0
+    
+    def listar_historico(self):
+
+        self.cursor.execute("""
+            SELECT *
+            FROM pacientes
+            WHERE status = 'Finalizado'
+            ORDER BY data_finalizacao DESC
+        """)
+
+        return self.cursor.fetchall()
+    
+    def contar_pacientes(self, especialidade):
+
+        self.cursor.execute("""
+            SELECT COUNT(*)
+            FROM pacientes
+            WHERE status = 'Aguardando'
+            AND especialidade = ?
+        """, (especialidade,))
+
+        resultado = self.cursor.fetchone()
+
+        return resultado[0]
+
+    def consultar_posicao(self, senha):
+
+        self.cursor.execute("""
+            SELECT especialidade, data_cadastro
+            FROM pacientes
+            WHERE senha = ?
+            AND status = 'Aguardando'
+        """, (senha,))
+
+        paciente = self.cursor.fetchone()
+
+        if paciente is None:
+            return None
+
+        especialidade, data_cadastro = paciente
+
+        self.cursor.execute("""
+            SELECT COUNT(*)
+            FROM pacientes
+            WHERE especialidade = ?
+            AND status = 'Aguardando'
+            AND data_cadastro <= ?
+        """, (especialidade, data_cadastro))
+
+        return self.cursor.fetchone()[0]
+    
+    def calcular_tempo_espera(self, senha):
+
+        posicao = self.consultar_posicao(senha)
+
+        if posicao is None:
+            return None
+
+        tempo = (posicao - 1) * 30
+
+        return tempo
+    
+    def buscar_paciente(self, senha):
+
+        self.cursor.execute("""
+            SELECT *
+            FROM pacientes
+            WHERE senha = ?
+        """, (senha,))
+
+        return self.cursor.fetchone()
+    
+    def proximo_paciente(self, especialidade):
+
+        self.cursor.execute("""
+            SELECT * FROM pacientes
+            WHERE especialidade = ?
+            AND status = 'Aguardando'
+            ORDER BY
+                CASE WHEN prioridade = 'Prioritário' THEN 0 ELSE 1 END,
+                data_cadastro ASC,
+                id ASC
+            LIMIT 1
+        """, (especialidade,))
+
+        return self.cursor.fetchone()
+        
+>>>>>>> 8997466df5d48e84f02fa59c6c46b3db26cd229b
