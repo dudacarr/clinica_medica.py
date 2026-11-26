@@ -184,6 +184,36 @@ class SistemaClinica:
         tk.Button(self.aba_espera, text="ATUALIZAR", command=self.atualizar_tudo,
                   bg="#2563eb", fg="white", font=("Arial", 11, "bold"),
                   padx=20, pady=10).pack(pady=10)
+        
+        tk.Label(
+        self.aba_espera,
+        text="PACIENTES AGUARDANDO",
+        font=("Arial", 14, "bold"),
+        bg="white",
+        fg="#17365d"
+        ).pack(pady=5)
+
+        colunas = ("senha", "especialidade", "posicao", "tempo")
+
+        self.tabela_fila = ttk.Treeview(
+            self.aba_espera,
+            columns=colunas,
+            show="headings",
+            height=6
+        )
+
+        titulos = {
+            "senha": "Senha",
+            "especialidade": "Especialidade",
+            "posicao": "Posição",
+            "tempo": "Tempo estimado"
+        }
+
+        for coluna, titulo in titulos.items():
+            self.tabela_fila.heading(coluna, text=titulo)
+            self.tabela_fila.column(coluna, width=150, anchor="center")
+
+        self.tabela_fila.pack(fill="both", expand=True, padx=35, pady=5)
 
     def atualizar_espera(self):
         for item in self.tabela.get_children():
@@ -194,7 +224,8 @@ class SistemaClinica:
             paciente = self.banco.proximo_paciente(especialidade)
 
             senha = paciente["senha"] if paciente else "---"
-            tempo = quantidade * 30
+
+            tempo = self.banco.calcular_tempo_espera(senha) if paciente else 0
             
             paciente_chamado = self.banco.paciente_em_atendimento(especialidade)
             senha_chamada = paciente_chamado["senha"] if paciente_chamado else "---"
@@ -236,6 +267,7 @@ class SistemaClinica:
         self.atualizar_medico()
         self.atualizar_espera()
         self.atualizar_historico()
+        self.atualizar_fila()
 
     def agendar_atualizacao(self):
         self.atualizar_tudo()
@@ -354,6 +386,43 @@ class SistemaClinica:
             especialidade,
             prioridade
         )
+        
+    def atualizar_fila(self):
+
+        for item in self.tabela_fila.get_children():
+            self.tabela_fila.delete(item)
+
+        for especialidade in ESPECIALIDADES:
+
+            pacientes = self.banco.listar_pacientes(especialidade)
+
+            registros = []
+
+            for paciente in pacientes:
+
+                senha = paciente["senha"]
+                posicao = self.banco.consultar_posicao(senha)
+
+                if posicao is not None:
+                    tempo = (posicao - 1) * 30
+
+                    registros.append((
+                        senha,
+                        especialidade,
+                        posicao,
+                        tempo
+                    ))
+
+            registros.sort(key=lambda registro: registro[2])
+
+            for senha, especialidade, posicao, tempo in registros:
+
+                self.tabela_fila.insert("", "end", values=(
+                    senha,
+                    especialidade,
+                    posicao,
+                    str(tempo) + " minutos"
+                ))
 
 if __name__ == "__main__":
     janela = tk.Tk()

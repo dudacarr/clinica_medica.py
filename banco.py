@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+from filas import GerenciadorFilas
 
 PREFIXOS = {
     "Cardiologia": "CAR",
@@ -15,6 +16,7 @@ class BancoDados:
         self.conexao = sqlite3.connect("clinica.db")
         self.conexao.row_factory = sqlite3.Row
         self.cursor = self.conexao.cursor()    
+        self.gerenciador = GerenciadorFilas()
         
     def criar_tabela(self):
 
@@ -84,6 +86,17 @@ class BancoDados:
     
     def chamar_paciente(self, senha, consultorio):
 
+        paciente = self.buscar_paciente(senha)
+
+        if paciente is None:
+            return False
+
+        especialidade = paciente["especialidade"]
+        categoria = paciente["prioridade"]
+
+        if self.gerenciador.proximo_paciente(especialidade) != senha:
+            return False
+
         data_chamada = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         self.cursor.execute("""
@@ -97,7 +110,16 @@ class BancoDados:
 
         self.conexao.commit()
 
-        return self.cursor.rowcount > 0
+        if self.cursor.rowcount > 0:
+
+            self.gerenciador.retirar_paciente(
+                especialidade,
+                categoria
+            )
+
+            return True
+
+        return False
     
     def finalizar_atendimento(self, senha):
 
@@ -188,18 +210,14 @@ class BancoDados:
     
     def proximo_paciente(self, especialidade):
 
-        self.cursor.execute("""
-            SELECT * FROM pacientes
-            WHERE especialidade = ?
-            AND status = 'Aguardando'
-            ORDER BY
-                CASE WHEN prioridade = 'Prioritário' THEN 0 ELSE 1 END,
-                data_cadastro ASC,
-                id ASC
-            LIMIT 1
-        """, (especialidade,))
+        self.carregar_filas(especialidade)
 
-        return self.cursor.fetchone()
+        senha = self.gerenciador.proximo_paciente(especialidade)
+
+        if senha is None:
+            return None
+
+        return self.buscar_paciente(senha)  
     
     def paciente_em_atendimento(self, especialidade):
 
@@ -212,4 +230,42 @@ class BancoDados:
         """, (especialidade,))
 
         return self.cursor.fetchone()
-        
+            
+    def carregar_filas(self, especialidade):
+
+        if especialidade not in self.gerenciador.filas:
+            return
+
+        for fila in self.gerenciador.filas[especialidade].values():
+            fila.clear()
+
+        self.cursor.execute("""
+            SELECT * FROM pacientes
+            WHERE especialidade = ?
+            AND status = 'Aguardando'
+            ORDER BY data_cadastro ASC, id ASC
+        """, (especialidade,))
+
+        for paciente in self.cursor.fetchall():
+
+            self.gerenciador.adicionar_paciente(
+                paciente["especialidade"],
+                paciente["prioridade"],
+                paciente["senha"]
+            )
+            
+    def consultar_posicao(self, senha):
+
+        paciente = self.buscar_paciente(senha)
+
+        if paciente is None or paciente["status"] != "Aguardando":
+            return None
+
+        especialidade = paciente["especialidade"]
+
+        self.carregar_filas(especialidade)
+
+        return self.gerenciador.consultar_posicao(
+            especialidade,
+            senha
+        )
