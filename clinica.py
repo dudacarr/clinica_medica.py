@@ -225,7 +225,7 @@ class SistemaClinica:
 
             senha = paciente["senha"] if paciente else "---"
 
-            tempo = self.banco.calcular_tempo_espera(senha) if paciente else 0
+            tempo = quantidade * 30
             
             paciente_chamado = self.banco.paciente_em_atendimento(especialidade)
             senha_chamada = paciente_chamado["senha"] if paciente_chamado else "---"
