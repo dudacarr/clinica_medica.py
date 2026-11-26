@@ -132,20 +132,20 @@ concluídos na aba
 
 ### Painel Médico
 
-![Painel médico inicial](README_GitHub/media/image5.png)
+![Painel médico inicial](media/image5.png)
 
-![Próximo paciente](README_GitHub/media/image6.png)
+![Próximo paciente](media/image6.png)
 
-![Chamada do paciente](README_GitHub/media/image4.png)
+![Chamada do paciente](media/image4.png)
 
 ### Sala de Espera
 
-![Sala de espera](README_GitHub/media/image1.png)
+![Sala de espera](media/image1.png)
 
 ### Histórico
 
-![Histórico](README_GitHub/media/image2.png)
+![Histórico](media/image2.png)
 
 ### Cadastro de Pacientes
 
-![Cadastro de pacientes](README_GitHub/media/image3.png)
+![Cadastro de pacientes](media/image3.png)
